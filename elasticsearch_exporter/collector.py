@@ -10,7 +10,7 @@ def collector_up_gauge(metric_name, description, succeeded=True):
     return GaugeMetricFamily(metric_name + '_up', description, value=int(succeeded))
 
 
-class Es(object):
+class EsCustomerHelper(object):
     def __init__(self, es_client):
         self.es_client = es_client
         self.custom_metric_dict = {}

@@ -9,7 +9,11 @@ from elasticsearch import Elasticsearch
 from prometheus_client.exposition import start_http_server
 from prometheus_client.core import REGISTRY
 
-from elasticsearch_exporter.collector import Es, QueryMetricCollector
+from elasticsearch_exporter.collector import (
+    ClusterHealthCollector,
+    EsCustomerHelper,
+    QueryMetricCollector
+)
 from elasticsearch_exporter.utils import shutdown
 
 
@@ -40,7 +44,7 @@ def main():
 
     es_client = Elasticsearch(es_cluster_list, verify_certs=False)
 
-    # REGISTRY.register(ClusterHealthCollector(es_client, 10, 'INFO'))
+    REGISTRY.register(ClusterHealthCollector(es_client, 10, 'INFO'))
     # REGISTRY.register(IndicesStatsCollector(es_client, 10))
     # REGISTRY.register(NodesStatsCollector(es_client, 10))
 
@@ -49,15 +53,12 @@ def main():
     if os.path.exists(config_filename_path):
         logging.info(f'reading custom metric from {config_filename_path}')
         with open(config_filename_path, 'r') as config_file:
-            custom_metric_config = yaml.load(
-                config_file, Loader=yaml.FullLoader
-            )
-        es = Es(es_client)
-        REGISTRY.register(QueryMetricCollector(es))
+            custom_metric_config = yaml.load(config_file, Loader=yaml.FullLoader)
+        es_customer_helper = EsCustomerHelper(es_client)
+        REGISTRY.register(QueryMetricCollector(es_customer_helper))
 
         scheduler = BackgroundScheduler()
-        for job, interval, name in es.gen_job(custom_metric_config):
+        for job, interval, name in es_customer_helper.gen_job(custom_metric_config):
             scheduler.add_job(job, 'interval', seconds=interval, name=name)
-        logging.getLogger('apscheduler.executors.default').setLevel(
-            getattr(logging, apscheduler_log_level))
+        logging.getLogger('apscheduler.executors.default').setLevel(getattr(logging, apscheduler_log_level))
         scheduler.start()
