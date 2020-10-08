@@ -9,8 +9,8 @@ from elasticsearch import Elasticsearch
 from prometheus_client.exposition import start_http_server
 from prometheus_client.core import REGISTRY
 
-from elastiesearch_exporter.collector import Es, QueryMetricCollector
-from elastiesearch_exporter.utils import shutdown
+from elasticsearch_exporter.collector import Es, QueryMetricCollector
+from elasticsearch_exporter.utils import shutdown
 
 
 @shutdown()
@@ -47,16 +47,17 @@ def main():
     if not config_filename_path:
         config_filename_path = './config.yaml'
     if os.path.exists(config_filename_path):
+        logging.info(f'reading custom metric from {config_filename_path}')
         with open(config_filename_path, 'r') as config_file:
             custom_metric_config = yaml.load(
                 config_file, Loader=yaml.FullLoader
             )
-        es = Es(es_client, 10)
+        es = Es(es_client)
         REGISTRY.register(QueryMetricCollector(es))
 
         scheduler = BackgroundScheduler()
         for job, interval, name in es.gen_job(custom_metric_config):
             scheduler.add_job(job, 'interval', seconds=interval, name=name)
-        # logging.getLogger('apscheduler.executors.default').setLevel(
-        #     getattr(logging, apscheduler_log_level))
+        logging.getLogger('apscheduler.executors.default').setLevel(
+            getattr(logging, apscheduler_log_level))
         scheduler.start()

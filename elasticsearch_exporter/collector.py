@@ -7,27 +7,21 @@ from prometheus_client.core import GaugeMetricFamily
 
 def collector_up_gauge(metric_name, description, succeeded=True):
     description = 'Did the {} fetch succeed.'.format(description)
-    return GaugeMetricFamily(
-        metric_name + '_up',
-        description,
-        value=int(succeeded)
-    )
+    return GaugeMetricFamily(metric_name + '_up', description, value=int(succeeded))
 
 
 class Es(object):
-    def __init__(self, es_client, timeout):
+    def __init__(self, es_client):
         self.es_client = es_client
         self.custom_metric_dict = {}
 
     def gen_job(self, config):
         global_c = config['global']
         for metric_config_dict in config['metrics']:
-            _interval = metric_config_dict.get(
-                'interval',
-                global_c['interval']
-            )
+            _interval = metric_config_dict.get('interval', global_c['interval'])
             if 'timeout' not in metric_config_dict:
                 metric_config_dict['timeout'] = global_c['timeout']
+
             try:
                 interval = int(_interval)
             except Exception:
@@ -39,6 +33,7 @@ class Es(object):
                     interval = interval * 60
                 elif unit == 'h':
                     interval = interval * 60 * 60
+
             yield (
                 partial(self.get_metric, metric_config_dict),
                 interval,
@@ -131,16 +126,11 @@ class BaseCollector(object):
             logging.warning(
                 f'fetching{self.description} timeout{self.timeout}'
             )
-            yield collector_up_gauge(self.metric_name, self.description,
-                                     succeeded=False)
+            yield collector_up_gauge(self.metric_name, self.description, succeeded=False)
         except Exception:
-            logging.warning(
-                f'fetching error: {self.description}'
-            )
-            yield collector_up_gauge(self.metric_name, self.description,
-                                     succeeded=False)
+            logging.warning(f'fetching error: {self.description}')
+            yield collector_up_gauge(self.metric_name, self.description, succeeded=False)
         else:
-            # yield from gauge_generator(metric_dict)
             yield collector_up_gauge(self.metric_name, self.description)
 
 
