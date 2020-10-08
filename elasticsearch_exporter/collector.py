@@ -10,7 +10,7 @@ def collector_up_gauge(metric_name, description, succeeded=True):
     return GaugeMetricFamily(metric_name + '_up', description, value=int(succeeded))
 
 
-class EsCustomerHelper(object):
+class QueryMetricCollector(object):
     def __init__(self, es_client):
         self.es_client = es_client
         self.custom_metric_dict = {}
@@ -109,6 +109,15 @@ class EsCustomerHelper(object):
                 g.add_metric(label_dict.values(), metric_value)
             self.custom_metric_dict[key] = g
 
+    def collect(self):
+        # Copy METRICS_BY_QUERY before iterating over it
+        # as it may be updated by other threads.
+        # (only first level - lower levels are replaced
+        # wholesale, so don't worry about them)
+        query_metrics = self.custom_metric_dict.copy()
+        for metric_dict in query_metrics.values():
+            yield metric_dict
+
 
 class BaseCollector(object):
     def __init__(self, metric_name_list, description, timeout):
@@ -190,10 +199,7 @@ class NodesStatsCollector(BaseCollector):
     def get_metric(self):
         response = self.es_client.nodes.stats(metric=self.metrics,
                                               request_timeout=self.timeout)
-        import json
-        print(json.dumps(response))
-        # metrics = nodes_stats_parser.parse_response(response,
-        #                                             self.metric_name_list)
+        # metrics = nodes_stats_parser.parse_response(response, self.metric_name_list)
         # metric_dict = group_metrics(metrics)
 
 
@@ -218,18 +224,3 @@ class IndicesStatsCollector(BaseCollector):
             file.write(json.dumps(response))
         # metrics = indices_stats_parser.parse_response(response, self.parse_indices, self.metric_name_list)
         # metric_dict = group_metrics(metrics)
-
-
-class QueryMetricCollector(object):
-
-    def __init__(self, es):
-        self.es = es
-
-    def collect(self):
-        # Copy METRICS_BY_QUERY before iterating over it
-        # as it may be updated by other threads.
-        # (only first level - lower levels are replaced
-        # wholesale, so don't worry about them)
-        query_metrics = self.es.custom_metric_dict.copy()
-        for metric_dict in query_metrics.values():
-            yield metric_dict

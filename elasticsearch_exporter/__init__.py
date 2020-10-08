@@ -11,7 +11,7 @@ from prometheus_client.core import REGISTRY
 
 from elasticsearch_exporter.collector import (
     ClusterHealthCollector,
-    EsCustomerHelper,
+    NodesStatsCollector,
     QueryMetricCollector
 )
 from elasticsearch_exporter.utils import shutdown
@@ -54,11 +54,11 @@ def main():
         logging.info(f'reading custom metric from {config_filename_path}')
         with open(config_filename_path, 'r') as config_file:
             custom_metric_config = yaml.load(config_file, Loader=yaml.FullLoader)
-        es_customer_helper = EsCustomerHelper(es_client)
-        REGISTRY.register(QueryMetricCollector(es_customer_helper))
+        query_metric_collector = QueryMetricCollector(es_client)
+        REGISTRY.register(query_metric_collector)
 
         scheduler = BackgroundScheduler()
-        for job, interval, name in es_customer_helper.gen_job(custom_metric_config):
+        for job, interval, name in query_metric_collector.gen_job(custom_metric_config):
             scheduler.add_job(job, 'interval', seconds=interval, name=name)
         logging.getLogger('apscheduler.executors.default').setLevel(getattr(logging, apscheduler_log_level))
         scheduler.start()
