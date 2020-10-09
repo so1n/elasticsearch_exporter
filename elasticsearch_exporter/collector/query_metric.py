@@ -3,6 +3,8 @@ from functools import partial
 
 from prometheus_client.core import GaugeMetricFamily
 
+from .base import interval_handle
+
 
 class QueryMetricCollector(object):
     def __init__(self, es_client):
@@ -16,24 +18,9 @@ class QueryMetricCollector(object):
             if 'timeout' not in metric_config_dict:
                 metric_config_dict['timeout'] = global_c['timeout']
 
-            try:
-                try:
-                    interval = int(_interval)
-                except Exception:
-                    interval = int(_interval[:-1])
-                    unit = _interval[-1]
-                    if unit == 's':
-                        pass
-                    elif unit == 'm':
-                        interval = interval * 60
-                    elif unit == 'h':
-                        interval = interval * 60 * 60
-            except Exception:
-                raise RuntimeError('Not support interval:{}'.format(_interval))
-
             yield (
                 partial(self.get_metric, metric_config_dict),
-                interval,
+                interval_handle(_interval),
                 metric_config_dict['name']
             )
 
