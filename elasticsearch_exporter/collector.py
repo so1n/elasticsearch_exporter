@@ -1,4 +1,5 @@
 import logging
+from collections import OrderedDict
 from functools import partial
 
 from elasticsearch.exceptions import ConnectionTimeout
@@ -40,22 +41,19 @@ class QueryMetricCollector(object):
                 metric_config_dict['name']
             )
 
-    def _aggregations_handle(
-            self, aggregations_dict, label_dict=None, is_first=True
-    ):
+    def _aggregations_handle(self, aggregations_dict, label_dict=None):
         for metric_key, metric_dict in aggregations_dict.items():
             if metric_key == 'key' or metric_key == 'doc_count':
                 continue
-            if is_first:
-                label_dict = {}
+            if label_dict is None:
+                label_dict = OrderedDict()
             bucket_dict_list = metric_dict["buckets"]
             for bucket_dict in bucket_dict_list:
                 label_dict[metric_key] = bucket_dict['key']
                 if len(bucket_dict) > 2:
                     yield from self._aggregations_handle(
                         bucket_dict,
-                        label_dict=label_dict,
-                        is_first=False
+                        label_dict=label_dict
                     )
                 else:
                     metric_value = bucket_dict['doc_count']
@@ -70,7 +68,7 @@ class QueryMetricCollector(object):
         index = metric_config_dict["index"].replace("*", "")
         metric = f'es_{index}_{metric_config_dict["name"]}'
         if response['timed_out']:
-           return
+            return
 
         key = metric + '_total_milliseconds'
         g = GaugeMetricFamily(
@@ -84,7 +82,7 @@ class QueryMetricCollector(object):
         if isinstance(total, dict):
             total = total['value']
 
-        key = metric + 'hits_total'
+        key = metric + '_hits_total'
         g = GaugeMetricFamily(
             key,
             metric_config_dict['doc'] + ' hits_total',
@@ -95,25 +93,18 @@ class QueryMetricCollector(object):
         if 'aggregations' in response:
             key = metric + '_aggregations'
             g = None
-            for label_dict, metric_value in self._aggregations_handle(
-                    response['aggregations']):
+            for label_dict, metric_value in self._aggregations_handle(response['aggregations']):
                 if not g:
                     label_key_list = label_dict.keys()
-                    doc = metric_config_dict['doc']\
-                        + f' custom query {",".join(label_key_list)}'
                     g = GaugeMetricFamily(
                         key,
-                        doc,
+                        metric_config_dict['doc'] + f' custom query {",".join(label_key_list)}',
                         labels=label_key_list
                     )
                 g.add_metric(label_dict.values(), metric_value)
             self.custom_metric_dict[key] = g
 
     def collect(self):
-        # Copy METRICS_BY_QUERY before iterating over it
-        # as it may be updated by other threads.
-        # (only first level - lower levels are replaced
-        # wholesale, so don't worry about them)
         query_metrics = self.custom_metric_dict.copy()
         for metric_dict in query_metrics.values():
             yield metric_dict
