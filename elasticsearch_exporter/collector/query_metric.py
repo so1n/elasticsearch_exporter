@@ -17,11 +17,13 @@ class QueryMetricCollector(object):
             _interval = metric_config_dict.get('interval', global_c['interval'])
             if 'timeout' not in metric_config_dict:
                 metric_config_dict['timeout'] = global_c['timeout']
+            if 'jitter' not in metric_config_dict:
+                metric_config_dict['jitter'] = global_c['jitter']
+            metric_config_dict['interval'] = interval_handle(_interval)
 
             yield (
                 partial(self.get_metric, metric_config_dict),
-                interval_handle(_interval),
-                metric_config_dict['name']
+                metric_config_dict
             )
 
     def _aggregations_handle(self, aggregations_dict, label_dict=None):

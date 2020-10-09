@@ -55,15 +55,19 @@ def main():
             query_metric_collector = QueryMetricCollector(es_client)
             REGISTRY.register(query_metric_collector)
 
-            for job, interval, name in query_metric_collector.gen_job(custom_metric_config):
-                scheduler.add_job(job, 'interval', seconds=interval, name=name)
+            for job, config in query_metric_collector.gen_job(custom_metric_config):
+                scheduler.add_job(
+                    job, 'interval', seconds=config['interval'], name=config['name'], jitter=config['jitter']
+                )
         if 'cluster_health' in custom_metric_config:
             logging.info('enable cluster_health')
             cluster_health_collector = ClusterHealthCollector(es_client, custom_metric_config)
             REGISTRY.register(cluster_health_collector)
             if cluster_health_collector.enable_scheduler:
-                job, interval, name = cluster_health_collector.gen_job()
-                scheduler.add_job(job, 'interval', seconds=interval, name=name)
+                job, config = cluster_health_collector.gen_job()
+                scheduler.add_job(
+                    job, 'interval', seconds=config['interval'], name=config['name'], jitter=config['jitter']
+                )
 
         logging.getLogger('apscheduler.executors.default').setLevel(getattr(logging, apscheduler_log_level))
         scheduler.start()

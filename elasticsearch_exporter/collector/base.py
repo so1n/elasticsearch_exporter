@@ -47,6 +47,7 @@ class BaseEsCollector(BaseCollector):
         self.config = config[key]
         self.global_config = config['global']
 
+        self.config['name'] = key
         self.enable_scheduler = False
         if 'interval' in self.config:
             self.enable_scheduler = True
@@ -55,6 +56,9 @@ class BaseEsCollector(BaseCollector):
 
         if 'timeout' not in self.config:
             self.config['timeout'] = self.global_config['timeout']
+
+        if 'jitter' not in self.config:
+            self.config['jitter'] = self.global_config.get('jitter', 0)
 
     def _get_metric(self):
         raise NotImplementedError
@@ -74,7 +78,7 @@ class BaseEsCollector(BaseCollector):
     def gen_job(self):
         def _job():
             self.custom_metric_value = self._get_metric()
-        return _job, self.config['interval'], self.key
+        return _job, self.config
 
     def collect(self):
         if self.enable_scheduler:
