@@ -11,8 +11,7 @@ from prometheus_client.core import REGISTRY
 
 from elasticsearch_exporter.collector import (
     ClusterHealthCollector,
-    NodesStatsCollector,
-    QueryMetricCollector
+    QueryMetricCollector,
 )
 from elasticsearch_exporter.utils import shutdown
 
@@ -38,15 +37,10 @@ def main():
         datefmt='%y-%m-%d %H:%M:%S',
         level=getattr(logging, log_level.upper()))
 
-    logging.info('Starting server...')
     start_http_server(listen_port)
     logging.info(f'Server started on port {listen_port}')
 
     es_client = Elasticsearch(es_cluster_list, verify_certs=False)
-
-    REGISTRY.register(ClusterHealthCollector(es_client, 10, 'INFO'))
-    # REGISTRY.register(IndicesStatsCollector(es_client, 10))
-    # REGISTRY.register(NodesStatsCollector(es_client, 10))
 
     if not config_filename_path:
         config_filename_path = './config.yaml'
@@ -54,11 +48,24 @@ def main():
         logging.info(f'reading custom metric from {config_filename_path}')
         with open(config_filename_path, 'r') as config_file:
             custom_metric_config = yaml.load(config_file, Loader=yaml.FullLoader)
-        query_metric_collector = QueryMetricCollector(es_client)
-        REGISTRY.register(query_metric_collector)
 
         scheduler = BackgroundScheduler()
-        for job, interval, name in query_metric_collector.gen_job(custom_metric_config):
-            scheduler.add_job(job, 'interval', seconds=interval, name=name)
+
+        if 'metrics' in custom_metric_config:
+            query_metric_collector = QueryMetricCollector(es_client)
+            REGISTRY.register(query_metric_collector)
+
+            for job, interval, name in query_metric_collector.gen_job(custom_metric_config):
+                scheduler.add_job(job, 'interval', seconds=interval, name=name)
+        if 'cluster_health' in custom_metric_config:
+            logging.info('enable cluster_health')
+            cluster_health_collector = ClusterHealthCollector(es_client, custom_metric_config)
+            REGISTRY.register(cluster_health_collector)
+            if cluster_health_collector.enable_scheduler:
+                job, interval, name = cluster_health_collector.gen_job()
+                scheduler.add_job(job, 'interval', seconds=interval, name=name)
+
         logging.getLogger('apscheduler.executors.default').setLevel(getattr(logging, apscheduler_log_level))
         scheduler.start()
+    else:
+        logging.error("Can't Found config path")
