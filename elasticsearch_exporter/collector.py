@@ -24,16 +24,19 @@ class QueryMetricCollector(object):
                 metric_config_dict['timeout'] = global_c['timeout']
 
             try:
-                interval = int(_interval)
+                try:
+                    interval = int(_interval)
+                except Exception:
+                    interval = int(_interval[:-1])
+                    unit = _interval[-1]
+                    if unit == 's':
+                        pass
+                    elif unit == 'm':
+                        interval = interval * 60
+                    elif unit == 'h':
+                        interval = interval * 60 * 60
             except Exception:
-                interval = int(_interval[:-1])
-                unit = _interval[-1]
-                if unit == 's':
-                    pass
-                elif unit == 'm':
-                    interval = interval * 60
-                elif unit == 'h':
-                    interval = interval * 60 * 60
+                raise RuntimeError('Not support interval:{}'.format(_interval))
 
             yield (
                 partial(self.get_metric, metric_config_dict),
@@ -65,8 +68,8 @@ class QueryMetricCollector(object):
             body=metric_config_dict['query_json'],
             request_timeout=metric_config_dict['timeout']
         )
-        index = metric_config_dict["index"].replace("*", "")
-        metric = f'es_{index}_{metric_config_dict["name"]}'
+        metric = metric_config_dict["metric"].format(**metric_config_dict)
+        metric = metric.replace("*", "")
         if response['timed_out']:
             return
 
