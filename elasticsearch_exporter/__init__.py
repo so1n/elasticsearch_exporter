@@ -9,10 +9,8 @@ from elasticsearch import Elasticsearch
 from prometheus_client.exposition import start_http_server
 from prometheus_client.core import REGISTRY
 
-from elasticsearch_exporter.collector import (
-    ClusterHealthCollector,
-    QueryMetricCollector,
-)
+from elasticsearch_exporter import collector
+
 from elasticsearch_exporter.utils import shutdown
 
 
@@ -51,20 +49,30 @@ def main():
 
         scheduler = BackgroundScheduler()
 
+        # register custom metric
         if 'metrics' in custom_metric_config:
-            query_metric_collector = QueryMetricCollector(es_client)
+            query_metric_collector = collector.QueryMetricCollector(es_client)
             REGISTRY.register(query_metric_collector)
 
             for job, config in query_metric_collector.gen_job(custom_metric_config):
                 scheduler.add_job(
                     job, 'interval', seconds=config['interval'], name=config['name'], jitter=config['jitter']
                 )
-        if 'cluster_health' in custom_metric_config:
-            logging.info('enable cluster_health')
-            cluster_health_collector = ClusterHealthCollector(es_client, custom_metric_config)
-            REGISTRY.register(cluster_health_collector)
-            if cluster_health_collector.enable_scheduler:
-                job, config = cluster_health_collector.gen_job()
+
+        # register es self metric
+        for es_system_metric in ['cluster_health']:
+            if es_system_metric not in custom_metric_config:
+                continue
+            es_system_class_name = ''.join([i.capitalize() for i in es_system_metric.split('_')]) + 'Collector'
+            collector_class = getattr(collector, es_system_class_name, ...)
+            if collector_class is ...:
+                logging.error(f"Can't found {es_system_metric} class")
+                continue
+            collector_instance = collector_class(es_client, custom_metric_config)
+            logging.info(f'enable {es_system_metric}. enable_scheduler: {collector_instance.enable_scheduler}')
+            REGISTRY.register(collector_instance)
+            if collector_instance.enable_scheduler:
+                job, config = collector_instance.gen_job()
                 scheduler.add_job(
                     job, 'interval', seconds=config['interval'], name=config['name'], jitter=config['jitter']
                 )
@@ -72,4 +80,4 @@ def main():
         logging.getLogger('apscheduler.executors.default').setLevel(getattr(logging, apscheduler_log_level))
         scheduler.start()
     else:
-        logging.error("Can't Found config path")
+        logging.error("Can't found config path")
