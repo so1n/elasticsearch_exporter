@@ -1,2 +1,2 @@
-from .cluster_health import ClusterHealthCollector
+from .cluster import EsClusterCollector
 from .query_metric import QueryMetricCollector
