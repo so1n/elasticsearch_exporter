@@ -39,7 +39,6 @@ def main():
     logging.info(f'Server started on port {listen_port}')
 
     es_client = Elasticsearch(es_cluster_list, verify_certs=False)
-
     if not config_filename_path:
         config_filename_path = './config.yaml'
     if os.path.exists(config_filename_path):
@@ -60,7 +59,7 @@ def main():
                 )
 
         # register es self metric
-        for es_system_metric in ['cluster_health']:
+        for es_system_metric in ['es_cluster', 'es_node']:
             if es_system_metric not in custom_metric_config:
                 continue
             es_system_class_name = ''.join([i.capitalize() for i in es_system_metric.split('_')]) + 'Collector'

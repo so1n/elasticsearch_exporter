@@ -60,6 +60,17 @@ class BaseEsCollector(BaseCollector):
         if 'jitter' not in self.config:
             self.config['jitter'] = self.global_config.get('jitter', 0)
 
+    def auto_gen_metric(self, metric_name, data_dict, metric_doc=''):
+        for key, value in data_dict.items():
+            _metric_name = metric_name + f'{key}'
+            _metric_doc = metric_doc + f' {key}'
+            if key == 'timestamp':
+                continue
+            if type(value) in (int, float):
+                yield _metric_name, _metric_doc.strip(), value
+            elif type(value) is dict:
+                self.auto_gen_metric(metric_name, value)
+
     def _get_metric(self):
         raise NotImplementedError
 
@@ -69,8 +80,8 @@ class BaseEsCollector(BaseCollector):
         except ConnectionTimeout:
             logging.warning(f'fetching{self.key} timeout')
             yield collector_up_gauge(self.key, succeeded=False)
-        except Exception:
-            logging.warning(f'fetching error: {self.key}')
+        except Exception as e:
+            logging.warning(f'fetching error: {self.key} error:{e}')
             yield collector_up_gauge(self.key, succeeded=False)
         else:
             yield collector_up_gauge(self.key)
