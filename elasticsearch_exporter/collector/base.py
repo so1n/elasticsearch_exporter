@@ -61,6 +61,18 @@ class BaseEsCollector(BaseCollector):
         if 'jitter' not in self.config:
             self.config['jitter'] = self.global_config.get('jitter', 0)
 
+    def get_request_param_from_config(self, key_list):
+        param_dict = {}
+        request_param = self.config.get('request_param', {})
+        for key, choice_list, default in key_list:
+            value = request_param.get(key, default)
+            if value is ...:
+                continue
+            if choice_list is not ... and key not in choice_list:
+                continue
+            param_dict[key] = value
+        return param_dict
+
     def auto_gen_metric(self, metric_name, data_dict, metric_doc=''):
         for key, value in data_dict.items():
             _metric_name = metric_name + f'{key}'

@@ -8,11 +8,42 @@ class EsNodeCollector(BaseEsCollector):
     def __init__(self, es_client, config):
         self.es_client = es_client
         super().__init__(config)
-        self.timeout = self.config.get('timeout', 10)
-        self._doc_dict = {}
+        self.param_dict = self.get_request_param_from_config(
+            (
+                ('node_id', ..., None),
+                ('metric', ('_all', 'breaker', 'fs', 'http', 'indices', 'jvm', 'os', 'process', 'thread_pool',
+                            'transport', 'discovery'), ...),
+                ('index_metric', ('_all', 'completion', 'docs', 'fielddata', 'query_cache', 'flush', 'get', 'indexing',
+                                  'merge', 'request_cache', 'refresh', 'search', 'segments', 'store', 'warmer',
+                                  'suggest'), ...),
+                ('completion_fields', ..., ...),
+                ('fielddata_fields', ..., ...),
+                ('fields', ..., ...),
+                ('groups', ..., ...),
+                ('include_segment_file_sizes', ..., 'false'),
+                ('level', ('node', 'indices', 'shards'), 'node'),
+                ('timeout', ..., '30s'),
+                ('type', ..., ...)
+
+            )
+        )
+        self.node_id = self.param_dict.pop('node_id')
+        if 'metric' in self.param_dict:
+            self.metric = self.param_dict.pop('metric')
+        else:
+            self.metric = None
+        if self.metric not in ('indices', '_all') or 'index_metric' not in self.param_dict:
+            self.index_metric = None
+        else:
+            self.index_metric = self.param_dict.pop('index_metric')
 
     def _get_metric(self):
-        response = self.es_client.nodes.stats(request_timeout=self.timeout)
+        response = self.es_client.nodes.stats(
+            node_id=self.node_id,
+            metric=self.metric,
+            index_metric=self.index_metric,
+            params=self.param_dict
+        )
         all_node_dict = response['nodes']
         for node_id in all_node_dict:
             node_dict = all_node_dict[node_id]
