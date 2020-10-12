@@ -59,16 +59,15 @@ def main():
                 )
 
         # register es self metric
-        for es_system_metric in ['es_cluster', 'es_node']:
-            if es_system_metric not in custom_metric_config:
+        for es_system_class_name in dir(collector):
+            if not es_system_class_name.endswith('Collector') \
+                    or es_system_class_name == collector.QueryMetricCollector.__name__:
                 continue
-            es_system_class_name = ''.join([i.capitalize() for i in es_system_metric.split('_')]) + 'Collector'
             collector_class = getattr(collector, es_system_class_name, ...)
-            if collector_class is ...:
-                logging.error(f"Can't found {es_system_metric} class")
+            if collector_class.key not in custom_metric_config:
                 continue
             collector_instance = collector_class(es_client, custom_metric_config)
-            logging.info(f'enable {es_system_metric}. enable_scheduler: {collector_instance.enable_scheduler}')
+            logging.info(f'enable {es_system_class_name}. enable_scheduler: {collector_instance.enable_scheduler}')
             REGISTRY.register(collector_instance)
             if collector_instance.enable_scheduler:
                 job, config = collector_instance.gen_job()

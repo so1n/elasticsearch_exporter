@@ -3,9 +3,11 @@ from prometheus_client.core import GaugeMetricFamily
 
 
 class EsClusterCollector(BaseEsCollector):
+    key = 'es_cluster'
+
     def __init__(self, es_client, config):
         self.es_client = es_client
-        super().__init__(config, 'es_cluster')
+        super().__init__(config)
         self.timeout = self.config.get('timeout', 10)
         self.level = self.config.get('level', 'info')
         self.status_dict = {

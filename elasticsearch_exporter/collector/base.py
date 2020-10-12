@@ -27,6 +27,8 @@ def interval_handle(_interval):
 
 
 class BaseCollector(object):
+    key = None
+
     def _get_metric(self):
         raise NotImplementedError
 
@@ -41,13 +43,12 @@ class BaseCollector(object):
 
 
 class BaseEsCollector(BaseCollector):
-    def __init__(self, config, key):
-        self.key = key
+    def __init__(self, config):
         self.custom_metric_value = None
-        self.config = config[key]
+        self.config = config[self.key]
         self.global_config = config['global']
 
-        self.config['name'] = key
+        self.config['name'] = self.key
         self.enable_scheduler = False
         if 'interval' in self.config:
             self.enable_scheduler = True

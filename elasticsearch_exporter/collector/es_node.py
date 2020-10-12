@@ -1,12 +1,13 @@
-import json
 from .base import BaseEsCollector
 from prometheus_client.core import GaugeMetricFamily
 
 
 class EsNodeCollector(BaseEsCollector):
+    key = 'es_node'
+
     def __init__(self, es_client, config):
         self.es_client = es_client
-        super().__init__(config, 'es_node')
+        super().__init__(config)
         self.timeout = self.config.get('timeout', 10)
         self._doc_dict = {}
 
