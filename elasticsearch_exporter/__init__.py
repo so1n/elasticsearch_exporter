@@ -64,6 +64,8 @@ def main():
                     or es_system_class_name == collector.QueryMetricCollector.__name__:
                 continue
             collector_class = getattr(collector, es_system_class_name, ...)
+            if collector_class is ...:
+                continue
             if collector_class.key not in custom_metric_config:
                 continue
             collector_instance = collector_class(es_client, custom_metric_config)
