@@ -1,14 +1,16 @@
-from .base import BaseEsCollector
+from typing import Any, Dict, List, Optional
+from elasticsearch import Elasticsearch
 from prometheus_client.core import GaugeMetricFamily
+
+from .base import BaseEsCollector
 
 
 class EsNodeCollector(BaseEsCollector):
-    key = 'es_node'
+    key: str = 'es_node'
 
-    def __init__(self, es_client, config):
-        self.es_client = es_client
-        super().__init__(config)
-        self.param_dict = self.get_request_param_from_config(
+    def __init__(self, es_client: 'Elasticsearch', config: Dict[str, Any]):
+        super().__init__(es_client, config)
+        self.param_dict: Dict[str, Any] = self.get_request_param_from_config(
             (
                 ('node_id', ..., None),
                 ('metric', ('_all', 'breaker', 'fs', 'http', 'indices', 'jvm', 'os', 'process', 'thread_pool',
@@ -27,36 +29,37 @@ class EsNodeCollector(BaseEsCollector):
 
             )
         )
-        self.node_id = self.param_dict.pop('node_id')
+        self.node_id: str = self.param_dict.pop('node_id')
+        self.metric: Optional[str] = None
         if 'metric' in self.param_dict:
             self.metric = self.param_dict.pop('metric')
-        else:
-            self.metric = None
+
+        self.index_metric: Optional[str] = None
         if self.metric not in ('indices', '_all') or 'index_metric' not in self.param_dict:
             self.index_metric = None
         else:
             self.index_metric = self.param_dict.pop('index_metric')
 
     def _get_metric(self):
-        response = self.es_client.nodes.stats(
+        response: Dict[str, Any] = self.es_client.nodes.stats(
             node_id=self.node_id,
             metric=self.metric,
             index_metric=self.index_metric,
             params=self.param_dict
         )
-        all_node_dict = response['nodes']
+        all_node_dict: Dict[str, Any] = response['nodes']
         for node_id in all_node_dict:
-            node_dict = all_node_dict[node_id]
-            node = node_dict['name']
-            instance = node_dict['transport_address']
-            labels_value_list = [node, node_id, instance]
-            labels_key_list = ['node', 'node_id', 'instance']
+            node_dict: Dict[str, Any] = all_node_dict[node_id]
+            node: str = node_dict['name']
+            instance: str = node_dict['transport_address']
+            labels_value_list: List[str] = [node, node_id, instance]
+            labels_key_list: List[str] = ['node', 'node_id', 'instance']
 
             # node role
-            node_role_list = node_dict['roles']
-            metric = f'{self.key}_role'
+            node_role_list: List[str] = node_dict['roles']
+            metric: str = f'{self.key}_role'
             if not self.is_block(metric):
-                g = GaugeMetricFamily(
+                g: 'GaugeMetricFamily' = GaugeMetricFamily(
                     metric,
                     'node role',
                     labels=labels_key_list
@@ -72,7 +75,7 @@ class EsNodeCollector(BaseEsCollector):
                 for metric_name, metric_doc, value in self.auto_gen_metric(self.key + '_', node_dict[es_system_metric]):
                     if self.is_block(metric_name):
                         continue
-                    g = GaugeMetricFamily(
+                    g: 'GaugeMetricFamily' = GaugeMetricFamily(
                         metric_name,
                         metric_doc,
                         labels=labels_key_list

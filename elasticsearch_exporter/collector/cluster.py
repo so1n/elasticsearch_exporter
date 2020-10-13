@@ -1,15 +1,17 @@
-from .base import BaseEsCollector
+from typing import Any, Dict
+from elasticsearch import Elasticsearch
 from prometheus_client.core import GaugeMetricFamily
+
+from .base import BaseEsCollector
 
 
 class EsClusterCollector(BaseEsCollector):
-    key = 'es_cluster'
+    key: str = 'es_cluster'
 
-    def __init__(self, es_client, config):
-        self.es_client = es_client
-        super().__init__(config)
+    def __init__(self, es_client: 'Elasticsearch', config: Dict[str, Any]):
+        super().__init__(es_client, config)
 
-        self.param_dict = self.get_request_param_from_config(
+        self.param_dict: Dict[str, Any] = self.get_request_param_from_config(
             (
                 ('expand_wildcards', ('open', 'closed', 'none', 'all'), 'all'),
                 ('level', ('cluster', 'indices', 'shards'), 'cluster'),
@@ -24,27 +26,26 @@ class EsClusterCollector(BaseEsCollector):
                 ('wait_for_status', ('green', 'yellow', 'red'), ...)
             )
         )
-        self.status_dict = {
+        self.status_dict: Dict[str, int] = {
             'green': 0,
             'yellow': 1,
             'red': 2
         }
-        self._doc_dict = {}
 
     def _get_metric(self):
-        response = self.es_client.cluster.health(params=self.param_dict)
-        cluster_name = response['cluster_name']
+        response: Dict[str, Any] = self.es_client.cluster.health(params=self.param_dict)
+        cluster_name: str = response['cluster_name']
         del response['cluster_name']
         del response['timed_out']
-        status = response['status']
+        status: str = response['status']
         response['status'] = self.status_dict.get(status, 2)
         for key, value in response.items():
-            metric = f'{self.key}_{key}'
+            metric: str = f'{self.key}_{key}'
             if self.is_block(metric):
                 continue
-            g = GaugeMetricFamily(
+            g: 'GaugeMetricFamily' = GaugeMetricFamily(
                 metric,
-                self._doc_dict.get('key', key),
+                key,
                 labels=['cluster_name']
             )
             g.add_metric([cluster_name], value)

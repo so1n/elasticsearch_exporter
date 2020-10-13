@@ -4,24 +4,27 @@ import time
 import signal
 import sys
 import os
+from enum import Enum
+
+from typing import Callable, Tuple
 
 
-def shutdown(shutdown_signals=(signal.SIGINT, signal.SIGTERM)):
+def shutdown(shutdown_signals: Tuple[Enum, ...] = (signal.SIGINT, signal.SIGTERM)):
 
-    def sig_handler(signum, _):
+    def sig_handler(signum: int, _):
         logging.info(f'Received signal:{signal.Signals(signum).name}')
         sys.exit()
 
-    def decorator(func):
+    def decorator(func: Callable) -> Callable:
 
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            old_handlers = {}
+            old_handlers: dict = {}
             for sig in shutdown_signals:
                 old_handlers[sig] = signal.signal(sig, sig_handler)
 
             try:
-                _func = func(*args, **kwargs)
+                _func: Callable = func(*args, **kwargs)
                 while True:
                     try:
                         time.sleep(5)

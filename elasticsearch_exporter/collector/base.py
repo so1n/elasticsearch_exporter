@@ -1,22 +1,24 @@
 import logging
 import re
+from typing import Any, Callable, Dict, Generator, List, Tuple, Optional, Union
 
+from elasticsearch import Elasticsearch
 from elasticsearch.exceptions import ConnectionTimeout
 from prometheus_client.core import GaugeMetricFamily
 
 
-def collector_up_gauge(metric_name, succeeded=True):
+def collector_up_gauge(metric_name: str, succeeded: bool = True) -> GaugeMetricFamily:
     description = 'Did the {} fetch succeed.'.format(metric_name)
     return GaugeMetricFamily(metric_name + '_up', description, value=int(succeeded))
 
 
-def interval_handle(_interval):
+def interval_handle(_interval: str) -> int:
     try:
         try:
-            interval = int(_interval)
+            interval: int = int(_interval)
         except Exception:
-            interval = int(_interval[:-1])
-            unit = _interval[-1]
+            interval: int = int(_interval[:-1])
+            unit: str = _interval[-1]
             if unit == 's':
                 pass
             elif unit == 'm':
@@ -29,7 +31,7 @@ def interval_handle(_interval):
 
 
 class BaseCollector(object):
-    key = None
+    key: Optional[str] = None
 
     def _get_metric(self):
         raise NotImplementedError
@@ -45,18 +47,19 @@ class BaseCollector(object):
 
 
 class BaseEsCollector(BaseCollector):
-    def __init__(self, config):
-        self.custom_metric_value = None
-        self.config = config[self.key]
-        self.global_config = config['global']
+    def __init__(self, es_client, config: Dict[str, Any]):
+        self.es_client: 'Elasticsearch' = es_client
+        self.custom_metric_value: Optional[GaugeMetricFamily] = None
+        self.config: Dict[str, Any] = config[self.key]
+        self.global_config: Dict[str, Any] = config['global']
 
         self.config['name'] = self.key
-        self.enable_scheduler = False
+        self.enable_scheduler: bool = False
         if 'interval' in self.config:
-            _interval = self.config.get('interval', self.global_config['interval'])
+            _interval: str = self.config.get('interval', self.global_config['interval'])
             if _interval != 'disable':
                 self.enable_scheduler = True
-                _interval = interval_handle(_interval)
+                _interval: int = interval_handle(_interval)
             self.config['interval'] = _interval
 
         if 'timeout' not in self.config:
@@ -65,26 +68,28 @@ class BaseEsCollector(BaseCollector):
         if 'jitter' not in self.config:
             self.config['jitter'] = self.global_config.get('jitter', 0)
 
-        global_config_black_re_list = self.global_config.get('black_re', [])
-        black_re_list = self.config.get('black_re', [])
+        global_config_black_re_list: List[str] = self.global_config.get('black_re', [])
+        black_re_list: List[str] = self.config.get('black_re', [])
         for black_re in global_config_black_re_list:
             if black_re not in black_re_list:
                 black_re_list.append(black_re)
-        self.black_re_list = [re.compile(i) for i in black_re_list]
+        self.black_re_list: List[re.Pattern[str]] = [re.compile(i) for i in black_re_list]
 
-    def is_block(self, metric):
-        is_block = False
+    def is_block(self, metric: str) -> bool:
+        is_block: bool = False
         for pattern in self.black_re_list:
             if pattern.match(metric):
                 is_block = True
                 break
         return is_block
 
-    def get_request_param_from_config(self, key_list):
-        param_dict = {}
-        request_param = self.config.get('request_param', {})
+    def get_request_param_from_config(
+            self, key_list: Tuple[Tuple[str, Union[Tuple[str, ...], ...], Union[str, ...]], ...]
+    ) -> Dict[str, Any]:
+        param_dict: Dict[str, Any] = {}
+        request_param: Dict[str, Any] = self.config.get('request_param', {})
         for key, choice_list, default in key_list:
-            value = request_param.get(key, default)
+            value: Union[..., Any] = request_param.get(key, default)
             if value is ...:
                 continue
             if choice_list is not ... and key not in choice_list:
@@ -92,7 +97,9 @@ class BaseEsCollector(BaseCollector):
             param_dict[key] = value
         return param_dict
 
-    def auto_gen_metric(self, metric_name, data_dict, metric_doc=''):
+    def auto_gen_metric(
+            self, metric_name: str, data_dict: Dict[str, Any], metric_doc: str = ''
+        ) -> Generator[str, str, Any]:
         for key, value in data_dict.items():
             _metric_name = metric_name + f'{key}'
             _metric_doc = metric_doc + f' {key}'
@@ -106,7 +113,7 @@ class BaseEsCollector(BaseCollector):
     def _get_metric(self):
         raise NotImplementedError
 
-    def get_metric(self):
+    def get_metric(self) -> Generator[GaugeMetricFamily]:
         try:
             yield from self._get_metric()
         except ConnectionTimeout:
@@ -118,12 +125,12 @@ class BaseEsCollector(BaseCollector):
         else:
             yield collector_up_gauge(self.key)
 
-    def gen_job(self):
+    def gen_job(self) -> Tuple[Callable, Dict[str, Any]]:
         def _job():
             self.custom_metric_value = self._get_metric()
         return _job, self.config
 
-    def collect(self):
+    def collect(self) -> Generator[GaugeMetricFamily]:
         if self.enable_scheduler:
             if self.custom_metric_value is not None:
                 yield from self.custom_metric_value
