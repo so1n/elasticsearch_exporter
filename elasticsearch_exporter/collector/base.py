@@ -53,9 +53,11 @@ class BaseEsCollector(BaseCollector):
         self.config['name'] = self.key
         self.enable_scheduler = False
         if 'interval' in self.config:
-            self.enable_scheduler = True
             _interval = self.config.get('interval', self.global_config['interval'])
-            self.config['interval'] = interval_handle(_interval)
+            if _interval != 'disable':
+                self.enable_scheduler = True
+                _interval = interval_handle(_interval)
+            self.config['interval'] = _interval
 
         if 'timeout' not in self.config:
             self.config['timeout'] = self.global_config.get('timeout', None)
