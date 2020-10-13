@@ -54,20 +54,24 @@ class EsNodeCollector(BaseEsCollector):
 
             # node role
             node_role_list = node_dict['roles']
-            g = GaugeMetricFamily(
-                f'{self.key}_role',
-                'node role',
-                labels=labels_key_list
-            )
-            for role in ['data', 'ingest', 'master', 'ml']:
-                g.add_metric(labels_value_list, float(role in node_role_list))
-            yield g
+            metric = f'{self.key}_role'
+            if not self.is_block(metric):
+                g = GaugeMetricFamily(
+                    metric,
+                    'node role',
+                    labels=labels_key_list
+                )
+                for role in ['data', 'ingest', 'master', 'ml']:
+                    g.add_metric(labels_value_list, float(role in node_role_list))
+                yield g
 
             for es_system_metric in [
                 'indices', 'os', 'process', 'jvm', 'thread_pool', 'fs', 'transport', 'http', 'breakers', 'script',
                 'discovery', 'ingest'
             ]:
                 for metric_name, metric_doc, value in self.auto_gen_metric(self.key + '_', node_dict[es_system_metric]):
+                    if self.is_block(metric_name):
+                        continue
                     g = GaugeMetricFamily(
                         metric_name,
                         metric_doc,

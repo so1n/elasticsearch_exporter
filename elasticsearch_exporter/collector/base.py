@@ -1,4 +1,6 @@
 import logging
+import re
+
 from elasticsearch.exceptions import ConnectionTimeout
 from prometheus_client.core import GaugeMetricFamily
 
@@ -56,10 +58,25 @@ class BaseEsCollector(BaseCollector):
             self.config['interval'] = interval_handle(_interval)
 
         if 'timeout' not in self.config:
-            self.config['timeout'] = self.global_config['timeout']
+            self.config['timeout'] = self.global_config.get('timeout', None)
 
         if 'jitter' not in self.config:
             self.config['jitter'] = self.global_config.get('jitter', 0)
+
+        global_config_black_re_list = self.global_config.get('black_re', [])
+        black_re_list = self.config.get('black_re', [])
+        for black_re in global_config_black_re_list:
+            if black_re not in black_re_list:
+                black_re_list.append(black_re)
+        self.black_re_list = [re.compile(i) for i in black_re_list]
+
+    def is_block(self, metric):
+        is_block = False
+        for pattern in self.black_re_list:
+            if pattern.match(metric):
+                is_block = True
+                break
+        return is_block
 
     def get_request_param_from_config(self, key_list):
         param_dict = {}
