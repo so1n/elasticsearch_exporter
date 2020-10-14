@@ -4,7 +4,9 @@ import os
 import sys
 
 import yaml
-from typing import Any, Dict, List, Type
+from logging import Handler
+from logging.handlers import SysLogHandler
+from typing import Any, Dict, List, Optional, Type
 
 from apscheduler.schedulers.background import BaseScheduler, BackgroundScheduler
 from elasticsearch import Elasticsearch
@@ -24,23 +26,48 @@ def main():
     parser.add_argument("--es_cluster", help='es node host. eg 127.0.0.1:9200 or 127.0.0.1:9200,127.0.0.2:9200')
     parser.add_argument("--listen_port", default=9206, help='server port that provide data to prometheus')
     parser.add_argument("--log_level", default='INFO', help='log level')
-    parser.add_argument("--apscheduler_log_level", default='WARNING', help='scheduler log level(enable scheduler)')
+    parser.add_argument("--apscheduler_log_level", default='WARNING', help='scheduler log level(when scheduler enable)')
+    parser.add_argument(
+        "--syslog_address",
+        help="syslog address, enable syslog handle when value is not empty, "
+             "If you want to send to the local, the value is '/dev/log'"
+    )
+    parser.add_argument(
+        "--syslog_facility",
+        help="syslog facility, can only be used when syslog is enabled",
+        choices=SysLogHandler.facility_names.keys()
+    )
     args, unknown = parser.parse_known_args()
 
+    log_level: str = args.log_level
+    apscheduler_log_level: str = args.apscheduler_log_level
+    syslog_address: str = args.syslog_address
+
+    basicConfig = dict(
+        format='[%(asctime)s %(levelname)s %(process)d] %(message)s',
+        datefmt='%y-%m-%d %H:%M:%S',
+        level=getattr(logging, log_level.upper(), 'INFO'),
+    )
+
+    if syslog_address:
+        syslog_facility: int = SysLogHandler.facility_names.get(args.syslog_facility, 'user')
+        basicConfig.update(
+            dict(
+                handlers=[SysLogHandler(address=syslog_address, facility=syslog_facility)],
+                format='%(levelname)s elasticsearch_exporter %(message)s',
+            )
+        )
+        del basicConfig['datefmt']
+
+    logging.basicConfig(**basicConfig)
+
     if not args.es_cluster:
-        print('not found es cluster. exit....')
+        logging.error('not found es cluster. exit....')
         sys.exit()
 
     es_cluster_list: List[str] = args.es_cluster.split(',')
     listen_port: int = int(args.listen_port)
     config_filename_path: str = args.config
-    log_level: str = args.log_level
-    apscheduler_log_level: str = args.apscheduler_log_level
-
-    logging.basicConfig(
-        format='[%(asctime)s %(levelname)s %(process)d] %(message)s',
-        datefmt='%y-%m-%d %H:%M:%S',
-        level=getattr(logging, log_level.upper()))
 
     start_http_server(listen_port)
     logging.info(f'Server started on port {listen_port}')
