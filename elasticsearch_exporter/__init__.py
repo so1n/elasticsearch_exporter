@@ -1,6 +1,7 @@
 import argparse
 import logging
 import os
+import sys
 
 import yaml
 from typing import Any, Dict, List, Type
@@ -19,12 +20,16 @@ from elasticsearch_exporter.utils import shutdown
 @shutdown()
 def main():
     parser: 'argparse.ArgumentParser' = argparse.ArgumentParser()
-    parser.add_argument("-c", "--config", default='./config.yaml')
-    parser.add_argument("--es_cluster")
-    parser.add_argument("--listen_port", default=9206)
-    parser.add_argument("--log_level", default='INFO')
-    parser.add_argument("--apscheduler_log_level", default='WARNING')
+    parser.add_argument("-c", "--config", default='./config.yaml', help='metric config; default use ./config.yml')
+    parser.add_argument("--es_cluster", help='es node host. eg 127.0.0.1:9200 or 127.0.0.1:9200,127.0.0.2:9200')
+    parser.add_argument("--listen_port", default=9206, help='server port that provide data to prometheus')
+    parser.add_argument("--log_level", default='INFO', help='log level')
+    parser.add_argument("--apscheduler_log_level", default='WARNING', help='scheduler log level(enable scheduler)')
     args, unknown = parser.parse_known_args()
+
+    if not args.es_cluster:
+        print('not found es cluster. exit....')
+        sys.exit()
 
     es_cluster_list: List[str] = args.es_cluster.split(',')
     listen_port: int = int(args.listen_port)
@@ -59,6 +64,7 @@ def main():
                 )
 
         # register es self metric
+        has_generator_metric: bool = False
         for es_system_class_name in dir(collector):
             if not es_system_class_name.endswith('Collector') \
                     or es_system_class_name == collector.QueryMetricCollector.__name__:
@@ -76,8 +82,18 @@ def main():
                 scheduler.add_job(
                     job, 'interval', seconds=config['interval'], name=config['name'], jitter=config['jitter']
                 )
+            else:
+                has_generator_metric = True
 
         logging.getLogger('apscheduler.executors.default').setLevel(getattr(logging, apscheduler_log_level))
-        scheduler.start()
+        if not scheduler.get_jobs():
+            if not has_generator_metric:
+                logging.error("not found scheduler job and generator metric job")
+                sys.exit()
+            else:
+                logging.info("not found scheduler job")
+        else:
+            scheduler.start()
     else:
-        logging.error("Can't found config path")
+        logging.error("Can't found config path. exit ...")
+        sys.exit()

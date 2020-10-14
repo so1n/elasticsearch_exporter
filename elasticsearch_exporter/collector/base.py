@@ -103,7 +103,7 @@ class BaseEsCollector(BaseCollector):
 
     def auto_gen_metric(
             self, metric_name: str, data_dict: Dict[str, Any], metric_doc: str = ''
-        ) -> Generator[Tuple[str, str, Any], None, None]:
+    ) -> Generator[Tuple[str, str, Any], None, None]:
         for key, value in data_dict.items():
             _metric_name = metric_name + f'{key}'
             _metric_doc = metric_doc + f' {key}'
