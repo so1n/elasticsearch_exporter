@@ -58,7 +58,7 @@ class EsNodeCollector(BaseEsCollector):
             # node role
             node_role_list: List[str] = node_dict['roles']
             metric: str = f'{self.key}_role'
-            if not self.is_block(metric):
+            if not self._is_block(metric):
                 g: 'GaugeMetricFamily' = GaugeMetricFamily(
                     metric,
                     'node role',
@@ -73,7 +73,7 @@ class EsNodeCollector(BaseEsCollector):
                 'discovery', 'ingest'
             ]:
                 for metric_name, metric_doc, value in self.auto_gen_metric(self.key + '_', node_dict[es_system_metric]):
-                    if self.is_block(metric_name):
+                    if self._is_block(metric_name):
                         continue
                     g: 'GaugeMetricFamily' = GaugeMetricFamily(
                         metric_name,

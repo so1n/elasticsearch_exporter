@@ -41,7 +41,7 @@ class EsClusterCollector(BaseEsCollector):
         response['status'] = self.status_dict.get(status, 2)
         for key, value in response.items():
             metric: str = f'{self.key}_{key}'
-            if self.is_block(metric):
+            if self._is_block(metric):
                 continue
             g: 'GaugeMetricFamily' = GaugeMetricFamily(
                 metric,

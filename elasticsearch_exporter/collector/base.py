@@ -1,6 +1,6 @@
 import logging
 import re
-from typing import Any, Callable, Dict, Generator, List, Tuple, Optional, Union
+from typing import Any, Callable, Dict, Generator, List, Tuple, Optional, Set, Union
 
 from elasticsearch import Elasticsearch
 from elasticsearch.exceptions import ConnectionTimeout
@@ -73,13 +73,18 @@ class BaseEsCollector(BaseCollector):
         for black_re in global_config_black_re_list:
             if black_re not in black_re_list:
                 black_re_list.append(black_re)
-        self.black_re_list: List[re.Pattern[str]] = [re.compile(i) for i in black_re_list]
+        self._black_re_list: List[re.Pattern[str]] = [re.compile(i) for i in black_re_list]
+        self._black_metric_set: Set[str] = set()
 
-    def is_block(self, metric: str) -> bool:
+    def _is_block(self, metric: str) -> bool:
         is_block: bool = False
-        for pattern in self.black_re_list:
+        if metric in self._black_metric_set:
+            return True
+
+        for pattern in self._black_re_list:
             if pattern.match(metric):
                 is_block = True
+                self._black_metric_set.add(metric)
                 break
         return is_block
 
