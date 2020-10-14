@@ -1,6 +1,6 @@
 from collections import OrderedDict
 from functools import partial
-from typing import Any, Callable, Dict, Generator, List, Optional, Tuple
+from typing import Any, Dict, Generator, List, Optional, Tuple
 
 from elasticsearch import Elasticsearch
 from prometheus_client.core import GaugeMetricFamily
@@ -59,13 +59,14 @@ class QueryMetricCollector(object):
         if response['timed_out']:
             return
 
+        custom_metric_dict: Dict[str, GaugeMetricFamily] = {}
         key: str = metric + '_total_milliseconds'
         g: 'GaugeMetricFamily' = GaugeMetricFamily(
             key,
             metric_config_dict['doc'] + ' total_milliseconds',
             value=response['took']
         )
-        self.custom_metric_dict[key] = g
+        custom_metric_dict[key] = g
 
         total = response['hits']['total']
         if isinstance(total, dict):
@@ -77,7 +78,7 @@ class QueryMetricCollector(object):
             metric_config_dict['doc'] + ' hits_total',
             total
         )
-        self.custom_metric_dict[key] = g
+        custom_metric_dict[key] = g
 
         if 'aggregations' in response:
             key: str = metric + '_aggregations'
@@ -91,9 +92,10 @@ class QueryMetricCollector(object):
                         labels=label_key_list
                     )
                 g.add_metric(label_dict.values(), metric_value)
-            self.custom_metric_dict[key] = g
+            custom_metric_dict[key] = g
+        self.custom_metric_dict = custom_metric_dict
 
     def collect(self) -> Generator[GaugeMetricFamily, None, None]:
-        query_metrics = self.custom_metric_dict.copy()
-        for metric in query_metrics.values():
+        custom_metric_dict: Dict[str, GaugeMetricFamily] = self.custom_metric_dict.copy()
+        for metric in custom_metric_dict.values():
             yield metric
