@@ -19,7 +19,7 @@ from elasticsearch_exporter.utils import shutdown
 @shutdown()
 def main():
     parser: 'argparse.ArgumentParser' = argparse.ArgumentParser()
-    parser.add_argument("-c", "--config", default='')
+    parser.add_argument("-c", "--config", default='./config.yaml')
     parser.add_argument("--es_cluster")
     parser.add_argument("--listen_port", default=9206)
     parser.add_argument("--log_level", default='INFO')
@@ -41,8 +41,6 @@ def main():
     logging.info(f'Server started on port {listen_port}')
 
     es_client: 'Elasticsearch' = Elasticsearch(es_cluster_list, verify_certs=False)
-    if not config_filename_path:
-        config_filename_path = './config.yaml'
     if os.path.exists(config_filename_path):
         logging.info(f'reading custom metric from {config_filename_path}')
         with open(config_filename_path, 'r') as config_file:

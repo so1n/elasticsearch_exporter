@@ -1,7 +1,6 @@
 import logging
 import re
 from typing import Any, Callable, Dict, Generator, List, Tuple, Optional, Set, Union
-
 from elasticsearch import Elasticsearch
 from elasticsearch.exceptions import ConnectionTimeout
 from prometheus_client.core import GaugeMetricFamily
@@ -89,7 +88,7 @@ class BaseEsCollector(BaseCollector):
         return is_block
 
     def get_request_param_from_config(
-            self, key_list: Tuple[Tuple[str, Union[Tuple[str, ...], ...], Union[str, ...]], ...]
+            self, key_list: Tuple[Tuple[str, Union[Tuple[str, ...], 'ellipsis'], Union[str, 'ellipsis']], ...]
     ) -> Dict[str, Any]:
         param_dict: Dict[str, Any] = {}
         request_param: Dict[str, Any] = self.config.get('request_param', {})
@@ -104,7 +103,7 @@ class BaseEsCollector(BaseCollector):
 
     def auto_gen_metric(
             self, metric_name: str, data_dict: Dict[str, Any], metric_doc: str = ''
-        ) -> Generator[str, str, Any]:
+        ) -> Generator[Tuple[str, str, Any], None, None]:
         for key, value in data_dict.items():
             _metric_name = metric_name + f'{key}'
             _metric_doc = metric_doc + f' {key}'
@@ -118,7 +117,7 @@ class BaseEsCollector(BaseCollector):
     def _get_metric(self):
         raise NotImplementedError
 
-    def get_metric(self) -> Generator[GaugeMetricFamily]:
+    def get_metric(self) -> Generator[GaugeMetricFamily, None, None]:
         try:
             yield from self._get_metric()
         except ConnectionTimeout:
@@ -135,7 +134,7 @@ class BaseEsCollector(BaseCollector):
             self.custom_metric_value = self._get_metric()
         return _job, self.config
 
-    def collect(self) -> Generator[GaugeMetricFamily]:
+    def collect(self) -> Generator[GaugeMetricFamily, None, None]:
         if self.enable_scheduler:
             if self.custom_metric_value is not None:
                 yield from self.custom_metric_value
