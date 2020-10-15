@@ -50,7 +50,7 @@ class QueryMetricCollector(object):
         response: Dict[str, Any] = self.es_client.search(
             index=metric_config_dict['index'],
             body=metric_config_dict['query_json'],
-            params=metric_config_dict.get('request_param', None)
+            params=metric_config_dict.get('request_param', {})
         )
         metric: str = metric_config_dict["metric"].format(**metric_config_dict)
         metric = metric.replace("*", "")

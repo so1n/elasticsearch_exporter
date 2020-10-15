@@ -76,12 +76,16 @@ class BaseEsCollector(object):
         for key, value in data_dict.items():
             _metric_name = metric_name + f'{key}'
             _metric_doc = metric_doc + f' {key}'
+            value_type = type(value)
             if key == 'timestamp':
                 continue
-            if type(value) in (int, float):
+            if value_type in (int, float):
                 yield _metric_name, _metric_doc.strip(), value
-            elif type(value) is dict:
-                self.auto_gen_metric(metric_name, value)
+            elif value_type is list:
+                for i in value:
+                    yield from self.auto_gen_metric(metric_name, i)
+            elif value_type is dict:
+                yield from self.auto_gen_metric(metric_name, value)
 
     def _get_metric(self):
         raise NotImplementedError

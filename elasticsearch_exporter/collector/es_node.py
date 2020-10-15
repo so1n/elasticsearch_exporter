@@ -26,7 +26,7 @@ class EsNodeCollector(BaseEsCollector):
             node_id=self.node_id,
             metric=self.metric,
             index_metric=self.index_metric,
-            params=self.config.get('request_param', None)
+            params=self.config.get('request_param', {})
         )
         all_node_dict: Dict[str, Any] = response['nodes']
         for node_id in all_node_dict:

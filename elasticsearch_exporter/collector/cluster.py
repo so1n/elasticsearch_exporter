@@ -18,7 +18,7 @@ class EsClusterCollector(BaseEsCollector):
         }
 
     def _get_metric(self):
-        response: Dict[str, Any] = self.es_client.cluster.health(params=self.config.get('request_param', None))
+        response: Dict[str, Any] = self.es_client.cluster.health(params=self.config.get('request_param', {}))
         cluster_name: str = response['cluster_name']
         del response['cluster_name']
         del response['timed_out']
