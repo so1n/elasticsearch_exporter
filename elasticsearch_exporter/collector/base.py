@@ -15,7 +15,7 @@ def interval_handle(_interval: str) -> int:
     try:
         try:
             interval: int = int(_interval)
-        except Exception:
+        except ValueError:
             interval: int = int(_interval[:-1])
             unit: str = _interval[-1]
             if unit == 's':
@@ -29,23 +29,9 @@ def interval_handle(_interval: str) -> int:
         raise RuntimeError('Not support interval:{}'.format(_interval))
 
 
-class BaseCollector(object):
+class BaseEsCollector(object):
     key: Optional[str] = None
 
-    def _get_metric(self):
-        raise NotImplementedError
-
-    def get_metric(self):
-        raise NotImplementedError
-
-    def gen_job(self):
-        raise NotImplementedError
-
-    def collect(self):
-        raise NotImplementedError
-
-
-class BaseEsCollector(BaseCollector):
     def __init__(self, es_client, config: Dict[str, Any]):
         self.es_client: 'Elasticsearch' = es_client
         self.custom_metric_value: Optional[GaugeMetricFamily] = None
@@ -88,7 +74,7 @@ class BaseEsCollector(BaseCollector):
         return is_block
 
     def get_request_param_from_config(
-            self, key_list: Tuple[Tuple[str, Union[Tuple[str, ...], 'ellipsis'], Union[str, 'ellipsis']], ...]
+            self, key_list: Tuple[Tuple[str, Tuple[str, ...], Any], ...]
     ) -> Dict[str, Any]:
         param_dict: Dict[str, Any] = {}
         request_param: Dict[str, Any] = self.config.get('request_param', {})

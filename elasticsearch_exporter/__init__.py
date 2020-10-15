@@ -4,9 +4,8 @@ import os
 import sys
 
 import yaml
-from logging import Handler
 from logging.handlers import SysLogHandler
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Dict, List, Type
 
 from apscheduler.schedulers.background import BaseScheduler, BackgroundScheduler
 from elasticsearch import Elasticsearch
@@ -43,7 +42,7 @@ def main():
     apscheduler_log_level: str = args.apscheduler_log_level
     syslog_address: str = args.syslog_address
 
-    basicConfig = dict(
+    basic_config: Dict[str, Any] = dict(
         format='[%(asctime)s %(levelname)s %(process)d] %(message)s',
         datefmt='%y-%m-%d %H:%M:%S',
         level=getattr(logging, log_level.upper(), 'INFO'),
@@ -51,15 +50,15 @@ def main():
 
     if syslog_address:
         syslog_facility: int = SysLogHandler.facility_names.get(args.syslog_facility, 'user')
-        basicConfig.update(
+        basic_config.update(
             dict(
                 handlers=[SysLogHandler(address=syslog_address, facility=syslog_facility)],
                 format='%(levelname)s elasticsearch_exporter %(message)s',
             )
         )
-        del basicConfig['datefmt']
+        del basic_config['datefmt']
 
-    logging.basicConfig(**basicConfig)
+    logging.basicConfig(**basic_config)
 
     if not args.es_cluster:
         logging.error('not found es cluster. exit....')
