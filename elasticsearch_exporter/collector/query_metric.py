@@ -16,11 +16,6 @@ class QueryMetricCollector(object):
     def gen_job(self, config: Dict[str, Any]) -> Generator[Tuple[partial, Dict[str, Any]], None, None]:
         global_c: Dict[str, Any] = config['global']
         for metric_config_dict in config['metrics']:
-            request_param: Dict[str, Any] = metric_config_dict.get('request_param', {})
-            if 'timeout' not in request_param:
-                request_param['timeout'] = global_c['timeout']
-
-            metric_config_dict['request_param'] = request_param
             if 'jitter' not in metric_config_dict:
                 metric_config_dict['jitter'] = global_c['jitter']
             _interval: str = metric_config_dict.get('interval', global_c['interval'])
@@ -55,7 +50,7 @@ class QueryMetricCollector(object):
         response: Dict[str, Any] = self.es_client.search(
             index=metric_config_dict['index'],
             body=metric_config_dict['query_json'],
-            params=metric_config_dict['request_param']
+            params=metric_config_dict.get('request_param', None)
         )
         metric: str = metric_config_dict["metric"].format(**metric_config_dict)
         metric = metric.replace("*", "")

@@ -47,9 +47,6 @@ class BaseEsCollector(object):
                 _interval: int = interval_handle(_interval)
             self.config['interval'] = _interval
 
-        if 'timeout' not in self.config:
-            self.config['timeout'] = self.global_config.get('timeout', None)
-
         if 'jitter' not in self.config:
             self.config['jitter'] = self.global_config.get('jitter', 0)
 
@@ -72,20 +69,6 @@ class BaseEsCollector(object):
                 self._black_metric_set.add(metric)
                 break
         return is_block
-
-    def get_request_param_from_config(
-            self, key_list: Tuple[Tuple[str, Tuple[str, ...], Any], ...]
-    ) -> Dict[str, Any]:
-        param_dict: Dict[str, Any] = {}
-        request_param: Dict[str, Any] = self.config.get('request_param', {})
-        for key, choice_list, default in key_list:
-            value: Union[..., Any] = request_param.get(key, default)
-            if value is ...:
-                continue
-            if choice_list is not ... and key not in choice_list:
-                continue
-            param_dict[key] = value
-        return param_dict
 
     def auto_gen_metric(
             self, metric_name: str, data_dict: Dict[str, Any], metric_doc: str = ''

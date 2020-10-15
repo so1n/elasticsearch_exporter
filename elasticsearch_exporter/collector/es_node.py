@@ -10,42 +10,23 @@ class EsNodeCollector(BaseEsCollector):
 
     def __init__(self, es_client: 'Elasticsearch', config: Dict[str, Any]):
         super().__init__(es_client, config)
-        self.param_dict: Dict[str, Any] = self.get_request_param_from_config(
-            (
-                ('node_id', ..., None),
-                ('metric', ('_all', 'breaker', 'fs', 'http', 'indices', 'jvm', 'os', 'process', 'thread_pool',
-                            'transport', 'discovery'), ...),
-                ('index_metric', ('_all', 'completion', 'docs', 'fielddata', 'query_cache', 'flush', 'get', 'indexing',
-                                  'merge', 'request_cache', 'refresh', 'search', 'segments', 'store', 'warmer',
-                                  'suggest'), ...),
-                ('completion_fields', ..., ...),
-                ('fielddata_fields', ..., ...),
-                ('fields', ..., ...),
-                ('groups', ..., ...),
-                ('include_segment_file_sizes', ..., 'false'),
-                ('level', ('node', 'indices', 'shards'), 'node'),
-                ('timeout', ..., '30s'),
-                ('type', ..., ...)
 
-            )
-        )
-        self.node_id: str = self.param_dict.pop('node_id')
-        self.metric: Optional[str] = None
-        if 'metric' in self.param_dict:
-            self.metric = self.param_dict.pop('metric')
+        request_param: Dict[str, Any] = self.config.get('request_param', {})
+        self.node_id: Optional[str] = request_param.get('node_id', None)
+        self.metric: Optional[str] = request_param.get('metric', None)
 
         self.index_metric: Optional[str] = None
-        if self.metric not in ('indices', '_all') or 'index_metric' not in self.param_dict:
+        if self.metric not in ('indices', '_all') or 'index_metric' not in request_param:
             self.index_metric = None
         else:
-            self.index_metric = self.param_dict.pop('index_metric')
+            self.index_metric = request_param.get('index_metric')
 
     def _get_metric(self):
         response: Dict[str, Any] = self.es_client.nodes.stats(
             node_id=self.node_id,
             metric=self.metric,
             index_metric=self.index_metric,
-            params=self.param_dict
+            params=self.config.get('request_param', None)
         )
         all_node_dict: Dict[str, Any] = response['nodes']
         for node_id in all_node_dict:
