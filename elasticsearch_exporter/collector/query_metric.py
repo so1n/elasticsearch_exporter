@@ -1,6 +1,6 @@
 from collections import OrderedDict
 from functools import partial
-from typing import Any, Dict, Generator, List, Optional, Tuple
+from typing import Any, Dict, Generator, List, Optional, Tuple, OrderedDict as OrderedDictType
 
 from elasticsearch import Elasticsearch
 from prometheus_client.core import GaugeMetricFamily
@@ -16,11 +16,14 @@ class QueryMetricCollector(object):
     def gen_job(self, config: Dict[str, Any]) -> Generator[Tuple[partial, Dict[str, Any]], None, None]:
         global_c: Dict[str, Any] = config['global']
         for metric_config_dict in config['metrics']:
-            _interval: str = metric_config_dict.get('interval', global_c['interval'])
-            if 'timeout' not in metric_config_dict:
-                metric_config_dict['timeout'] = global_c['timeout']
+            request_param: Dict[str, Any] = metric_config_dict.get('request_param', {})
+            if 'timeout' not in request_param:
+                request_param['timeout'] = global_c['timeout']
+
+            metric_config_dict['request_param'] = request_param
             if 'jitter' not in metric_config_dict:
                 metric_config_dict['jitter'] = global_c['jitter']
+            _interval: str = metric_config_dict.get('interval', global_c['interval'])
             metric_config_dict['interval'] = interval_handle(_interval)
 
             yield (
@@ -29,8 +32,8 @@ class QueryMetricCollector(object):
             )
 
     def _aggregations_handle(
-            self, aggregations_dict: Dict[str, Dict[str, Any]], label_dict: Optional[OrderedDict[str, str]] = None
-    ) -> Generator[Tuple[OrderedDict[str, str], int], None, None]:
+            self, aggregations_dict: Dict[str, Dict[str, Any]], label_dict: Optional[OrderedDictType[str, str]] = None
+    ) -> Generator[Tuple[OrderedDictType[str, str], int], None, None]:
         for metric_key, metric_dict in aggregations_dict.items():
             if metric_key == 'key' or metric_key == 'doc_count':
                 continue
@@ -52,7 +55,7 @@ class QueryMetricCollector(object):
         response: Dict[str, Any] = self.es_client.search(
             index=metric_config_dict['index'],
             body=metric_config_dict['query_json'],
-            request_timeout=metric_config_dict['timeout']
+            params=metric_config_dict['request_param']
         )
         metric: str = metric_config_dict["metric"].format(**metric_config_dict)
         metric = metric.replace("*", "")
